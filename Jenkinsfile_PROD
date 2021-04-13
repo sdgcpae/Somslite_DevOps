@@ -69,25 +69,21 @@ pipeline {
          	 }
         }
         stage("Deploy") {
-	       when { expression {env.GIT_BRANCH == 'dev' || env.GIT_BRANCH == 'release'|| propfile['feature_deploy'] == "true" }}
+	       when { expression {env.GIT_BRANCH == 'dev'}}
 		     steps {
 				container('gradle') {
 					script {
                                 withMaven(maven: 'MAVEN-3.6.3') {
-							propfile = readProperties(file: './project.properties')
-							if (propfile['feature_deploy'] == "true" ) {
-									USERNAME=propfile['USERNAME_FEATURE_DEPLOY']
-									HOSTS=propfile['HOSTS_FEATURE_DEPLOY']
-								}
-								if (env.GIT_BRANCH == 'dev' ) {
-									USERNAME=propfile['USERNAME_DEV_DEPLOY']
-									HOSTS=propfile['HOSTS_DEV_DEPLOY']
-								}
-								if (env.GIT_BRANCH == 'release') {
-									USERNAME=propfile['USERNAME_RELEASE_DEPLOY']
-									HOSTS=propfile['HOSTS_RELEASE_DEPLOY']
-								}
-								HOSTS.tokenize(',').each { HOSTNAME ->
+							if (env.GIT_BRANCH == 'dev' ) {
+								USERNAME=propfile['USERNAME_DEV_DEPLOY']
+								HOSTS=propfile['HOSTS_DEV_DEPLOY']
+							}
+							echo "Pulling artifact from the repository to deploy"
+							sh "mvn org.apache.maven.plugins:maven-dependency-plugin:2.8:get \
+								-DrepoUrl=https://archiva.sgnt.devops.accentureanalytics.com/repository/snapshots \
+								-Dartifact=io.buildpacks.example:sample:${propfile['artifact_name']}:jar -Ddest=$WORKSPACE/artifacts/myfile.jar"
+							sh "ls -la $WORKSPACE/artifacts"
+							HOSTS.tokenize(',').each { HOSTNAME ->
                 
               cat << EOF > propfile['deployment_cli_file']
               if (outcome != success) of /deployment=propfile['war_file']:read-resource
@@ -137,14 +133,15 @@ pipeline {
  }
 }
 stage('Post Deploy Tests') {
-when { expression {env.GIT_BRANCH == 'dev' || env.GIT_BRANCH == 'release'|| propfile['feature_deploy'] == "true" }}
+when { expression {env.GIT_BRANCH == 'dev'}}
 		parallel {
-			stage('Smoke Test') {
+			stage('Functional Test') {
+				when {expression {env.GIT_BRANCH == 'dev' || propfile['ondemand_functionaltest'] == "true" }}
 				steps {
 				  environment {
                                    worksoftcred= credentials('jenkins-worksoft-creds') 
 				              }
-					echo "I am executing Smoke Test on target dev environment post deployment"
+					echo "I am executing Functional Test on target dev environment post deployment"
 				}
 				/*
 				echo "username is :propfile['uname']"
@@ -187,16 +184,29 @@ when { expression {env.GIT_BRANCH == 'dev' || env.GIT_BRANCH == 'release'|| prop
 				exit */
 			}
 			stage('Security Test') {
+			when {expression {env.GIT_BRANCH == 'dev' || propfile['ondemand_securitytest'] == "true" }}
 				steps {
-				  container('gradle') {
-					script {
-						 withMaven(maven: 'MAVEN-3.6.3') {
-							echo 'I am running Security Test here'
-						     }
-				              }
-			             }
-		               }
-		      }
+					container('gradle') {
+						script {
+							withMaven(maven: 'MAVEN-3.6.3') {
+								echo 'I am running Security Test here'
+							}
+						}
+					}
+				}
+			}
+			stage('Performance Test') {
+			when {expression {env.GIT_BRANCH == 'dev' || propfile['ondemand_perfomancetest'] == "true" }}
+				steps {
+					container('gradle') {
+						script {
+							withMaven(maven: 'MAVEN-3.6.3') {
+								echo 'I am running Performance Test here'
+							}
+						}
+					}
+				}
+			}
 	      }  
 	}
      
@@ -204,4 +214,22 @@ when { expression {env.GIT_BRANCH == 'dev' || env.GIT_BRANCH == 'release'|| prop
 		
 	
   }
+  post {
+		failure {
+			script {
+				mail to: propfile['mail_to'],
+				cc: propfile['cc_to'],
+				subject: "Failed Pipeline: ${currentBuild.fullDisplayName}",
+				body: "Something is wrong with the ${projectName}-${env.GIT_BRANCH}-Branch-Build-${env.BUILD_NUMBER} Pipeline in the ${FAILED_STAGE} stage.\nBuild URL: ${env.BUILD_URL}"
+			}
+		}
+		success {
+			script {
+				mail to: propfile['mail_to'],
+				cc: propfile['cc_to'],
+				subject: "SuccessfulPipeline: ${currentBuild.fullDisplayName}",
+				body: "${projectName}-${env.GIT_BRANCH}-Branch-Build-${env.BUILD_NUMBER} Pipeline has been completed successfuly.\nBuild URL: ${env.BUILD_URL}"
+			}
+		}
+	}
 }	
