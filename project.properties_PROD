@@ -1,12 +1,44 @@
-cli_script='/opt/jboss/jboss-eap-7.2-domain/bin/jboss-cli.sh'
-deployment_cli_file='deployment.cli'
-server_groups='somslite-cluster'
-target_host='997725-DEV-EPIC-APP-01.signetomni.com'
-target_port='9993'
-target_user='jboss'
-war_deploy_dir='/opt/jboss/deploy'
-war_file='SterlingESB.war'
-property1_deploy_dir='/var/properties/ESB01Server01'
-property2_deploy_dir='/var/properties/esb'
-jbosscli_offline_user='jboss'
+//ci specific variables
+javadoc=false
+jacoco=false
+code_quality=true
+publish_pkg=false
+
+//deployment environment specific variables
+////dev environment deployement 
+////seperate host ip addresses by comma e.g. 10.1.2.3,10.4.5.6
+HOSTS_DEV_DEPLOY=997725-DEV-EPIC-APP-01.signetomni.com
+USERNAME_DEV_DEPLOY=jobss
+
+//deployment specific variables
+cli_script=/opt/jboss/jboss-eap-7.2-domain/bin/jboss-cli.sh
+deployment_cli_file=deployment.cli
+server_groups=somslite-cluster
+target_port=9993
+war_deploy_dir=/opt/jboss/deploy
+war_file=SterlingESB.war
+property1_deploy_dir=/var/properties/ESB01Server01
+property2_deploy_dir=/var/properties/esb
+jbosscli_offline_user=jboss
 jbosscli_offline_password=
+
+//post deployment testing specific variables
+ondemand_functionaltest=false
+ondemand_securitytest=false
+ondemand_performancetest=false
+////functionaltest (worksoft) specific variables
+uri=http://pwwsftapp01.irving.zalecorp.com/executionmanager/api
+DEV_host1=10.6.71.16
+uname=devopsengineering@signetjewelers.com
+RequestID=
+deployment_user=
+stage_name=
+////security test specific variables
+////performance test specific variables
+
+//email notification specific variables
+////seperate emails with a coma (,) e.g. test@gmail.com,test2@gmail.com
+mail_to=''
+cc_to=''
+
+artifact_name=EJB_DevOps-dev-build-6-SNAPSHOT
