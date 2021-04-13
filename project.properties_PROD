@@ -11,6 +11,7 @@ HOSTS_DEV_DEPLOY=997725-DEV-EPIC-APP-01.signetomni.com
 USERNAME_DEV_DEPLOY=jobss
 
 //deployment specific variables
+artifact_name=EJB_DevOps-dev-build-6-SNAPSHOT
 cli_script=/opt/jboss/jboss-eap-7.2-domain/bin/jboss-cli.sh
 deployment_cli_file=deployment.cli
 server_groups=somslite-cluster
@@ -41,4 +42,3 @@ stage_name=
 mail_to=''
 cc_to=''
 
-artifact_name=EJB_DevOps-dev-build-6-SNAPSHOT
