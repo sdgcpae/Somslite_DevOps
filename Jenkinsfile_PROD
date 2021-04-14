@@ -75,8 +75,8 @@ pipeline {
 					script {
                                 withMaven(maven: 'MAVEN-3.6.3') {
 							if (env.GIT_BRANCH == 'dev' ) {
-								USERNAME=propfile['USERNAME_DEV_DEPLOY']
-								HOSTS=propfile['HOSTS_DEV_DEPLOY']
+								USERNAME=propfile['USERNAME_DEPLOY']
+								HOSTS=propfile['HOSTS_DEPLOY']
 							}
 							echo "Pulling artifact from the repository to deploy"
 							sh "mvn org.apache.maven.plugins:maven-dependency-plugin:2.8:get \
