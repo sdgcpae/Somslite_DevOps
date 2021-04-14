@@ -7,8 +7,8 @@ publish_pkg=false
 //deployment environment specific variables
 ////dev environment deployement 
 ////seperate host ip addresses by comma e.g. 10.1.2.3,10.4.5.6
-HOSTS_DEV_DEPLOY=997725-DEV-EPIC-APP-01.signetomni.com
-USERNAME_DEV_DEPLOY=jobss
+HOSTS_DEPLOY=997725-DEV-EPIC-APP-01.signetomni.com
+USERNAME_DEPLOY=jobss
 
 //deployment specific variables
 artifact_name=EJB_DevOps-dev-build-6-SNAPSHOT
