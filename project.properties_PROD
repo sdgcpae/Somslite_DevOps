@@ -1,7 +1,7 @@
 //ci specific variables
 javadoc=false
 jacoco=false
-code_quality=true
+code_quality=false
 publish_pkg=false
 
 //deployment environment specific variables
