@@ -22,42 +22,86 @@ pipeline {
 			"""
 		}
 	}
+	environment {
+		//ci specific variables
+		javadoc = 'false'
+		jacoco = 'false'
+		code_quality = 'false'
+
+		//post deployment testing specific variables
+		ondemand_functionaltest = 'false'
+		ondemand_securitytest = 'false'
+		ondemand_performancetest = 'false'
+
+		
+		//deployment environment specific variables
+		////dev environment deployement 
+		////seperate host ip addresses by comma e.g. 10.1.2.3,10.4.5.6
+		HOSTS_DEPLOY = '997725-DEV-EPIC-APP-01.signetomni.com'
+		USERNAME_DEPLOY = 'jobss'
+
+		//deployment specific variables
+		cli_script = '/opt/jboss/jboss-eap-7.2-domain/bin/jboss-cli.sh'
+		deployment_cli_file = 'deployment.cli'
+		server_groups = 'somslite-cluster'
+		target_port = '9993'
+		war_deploy_dir = '/opt/jboss/deploy'
+		war_file = 'SterlingESB.war'
+		property1_deploy_dir = '/var/properties/ESB01Server01'
+		property2_deploy_dir = '/var/properties/esb'
+		jbosscli_offline_user = 'jboss'
+		jbosscli_offline_password = ''
+
+		////functionaltest (worksoft) specific variables
+		uri = 'http://pwwsftapp01.irving.zalecorp.com/executionmanager/api'
+		DEV_host1 = '10.6.71.16'
+		uname = 'devopsengineering@signetjewelers.com'
+		RequestID = ''
+		deployment_user = ''
+		stage_name = ''
+		////security test specific variables
+		////performance test specific variables
+		
+		//SSH TOKENS
+		token = credentials('id_rsa_jenkins')
+	}
 	stages {
 		stage('Build & Unit Test') {
 			steps {
 				container('gradle') {
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
-                echo 'Building'
-		propfile = readProperties(file: './project.properties_PROD')
-		echo  propfile['war_file']				
-                cd SomsLite
-                gradle --no-daemon somslitebuild
-                pwd
-                cd ..
-                echo 'copy property file'
-                cp -r SterlingESBAux/properties/dev1 properties/
-                cp -r SterlingESBAux/properties/uat1 properties/
-                cp -r SterlingESBAux/properties/perf1 properties/
-                cp -r SterlingESBAux/properties/perf2 properties/
-                cp -r SterlingESBAux/properties/prod1 properties/
-                cp -r SterlingESBAux/properties/prod2 properties/
+							echo 'Building'
+							propfile = readProperties(file: './project.properties_PROD')
+							//Check later
+							echo $war_file				
+							cd SomsLite
+							gradle --no-daemon somslitebuild
+							pwd
+							cd ..
+							echo 'copy property file'
+							cp -r SterlingESBAux/properties/dev1 properties/
+							cp -r SterlingESBAux/properties/uat1 properties/
+							cp -r SterlingESBAux/properties/perf1 properties/
+							cp -r SterlingESBAux/properties/perf2 properties/
+							cp -r SterlingESBAux/properties/prod1 properties/
+							cp -r SterlingESBAux/properties/prod2 properties/
 
-                ls -la properties
-                rm -rf $WORKSPACE/artifacts
-                mkdir -p $WORKSPACE/artifacts
-                for i in SomsLite;do cp -rp ${i}/dist/libs/* $WORKSPACE/artifacts/ ;done
-                cd $WORKSPACE/artifacts/
-                ls -lrt
-                cd ..
-                cp -rp properties $WORKSPACE/artifacts/
-                cd artifacts
-                ls -lrt
-		//adding Jacoco and javadoc steps
-		if (propfile['javadoc'] == "true") {
+							ls -la properties
+							rm -rf $WORKSPACE/artifacts
+							mkdir -p $WORKSPACE/artifacts
+							for i in SomsLite;do cp -rp ${i}/dist/libs/* $WORKSPACE/artifacts/ ;done
+							cd $WORKSPACE/artifacts/
+							ls -lrt
+							cd ..
+							cp -rp properties $WORKSPACE/artifacts/
+							cd artifacts
+							ls -lrt
+							//adding Jacoco and javadoc steps
+							if (javadoc == "true") {
 								sh 'mvn javadoc:aggregate'
 							}
-							if (propfile['jacoco'] == "true") {
+							if (jacoco == "true") {
 								jacoco( 
 									execPattern: '**/*.exec',
 									classPattern: '**/*.class',
@@ -70,75 +114,76 @@ pipeline {
             		}
          	 }
         }
-        stage("Deploy") {
-	       when { expression {env.GIT_BRANCH == 'dev'}}
-		     steps {
-				container('gradle') {
-					script {
-                                withMaven(maven: 'MAVEN-3.6.3') {
-							if (env.GIT_BRANCH == 'dev' ) {
-								USERNAME=propfile['USERNAME_DEPLOY']
-								HOSTS=propfile['HOSTS_DEPLOY']
-							}
-							echo "Pulling artifact from the repository to deploy"
-							sh "mvn org.apache.maven.plugins:maven-dependency-plugin:2.8:get \
-								-DrepoUrl=https://archiva.sgnt.devops.accentureanalytics.com/repository/snapshots \
-								-Dartifact=io.buildpacks.example:sample:${propfile['artifact_name']}:jar -Ddest=$WORKSPACE/artifacts/myfile.jar"
-							sh "ls -la $WORKSPACE/artifacts"
-							HOSTS.tokenize(',').each { HOSTNAME ->
-                
-              cat << EOF > propfile['deployment_cli_file']
-              if (outcome != success) of /deployment=propfile['war_file']:read-resource
-              echo ###
-              echo ### Deploy propfile['war_file'] to somslite-cluster
-              echo ###
-              deploy propfile['war_deploy_dir']/propfile['war_file'] --server-groups=propfile['server_groups']
-              else
-              echo ###
-              echo ### Module propfile['war_file'] already installed, deploying with rolling update
-              echo ###
-              deploy propfile['war_deploy_dir']/propfile['war_file'] --name=propfile['war_file'] --runtime-name=propfile['war_file'] --headers={rollout propfile['server_groups'](rolling-to-servers=true)} --force
-              end-if
-              echo
-              echo ###
-              echo ### Restarting servers
-              echo ###
-              echo
-              echo ### Restarting somslite-server01
-              if (outcome != success) of /host=node1/server-config=somslite-server01:restart
-              echo ### Server somslite-server01 restart failed
-              echo
-              else
-              echo ### Server somslite-server01 restarted
-              echo
-              end-if
-              EOF
-	     
-              echo 'coping property file into server'
-		mkdir -p $WORKSPACE/artifacts
-		cp -R /C/windows/system32/config/systemprofile/AppData/Local/Jenkins/.jenkins/workspace/DevOps_SomsLite/DevOps_SomsLite_release-2021_3.2/artifacts/* $WORKSPACE/artifacts/
-		cd $WORKSPACE/artifacts/properties/
-		mv dev_app_1_config-mule.properties config-mule.properties
-		mv dev_app_1_log4j.properties log4j.properties
-		mv dev_app_1_config.properties config.properties
-		scp -i /c/Users/ernesto.alvarez/.ssh/id_rsa_jenkins -o StrictHostKeyChecking=no -rp $WORKSPACE/artifacts/propfile['war_file'] $target_user@997725-DEV-EPIC-APP-01.signetomni.com:propfile['war_deploy_dir']
-		scp -i /c/Users/ernesto.alvarez/.ssh/id_rsa_jenkins -o StrictHostKeyChecking=no -rp $WORKSPACE/artifacts/properties/config-mule.properties $target_user@997725-DEV-EPIC-APP-01.signetomni.com:propfile['property1_deploy_dir']
-		scp -i /c/Users/ernesto.alvarez/.ssh/id_rsa_jenkins -o StrictHostKeyChecking=no -rp $WORKSPACE/artifacts/properties/log4j.properties $target_user@997725-DEV-EPIC-APP-01.signetomni.com:propfile['property1_deploy_dir']
-		scp -i /c/Users/ernesto.alvarez/.ssh/id_rsa_jenkins -o StrictHostKeyChecking=no -rp $WORKSPACE/artifacts/properties/config.properties $target_user@997725-DEV-EPIC-APP-01.signetomni.com:propfile['property2_deploy_dir']
-		scp -i /c/Users/ernesto.alvarez/.ssh/id_rsa_jenkins -o StrictHostKeyChecking=no -rp $WORKSPACE/propfile['deployment_cli_file'] propfile['target_user']@997725-DEV-EPIC-APP-01.signetomni.com:propfile['war_deploy_dir']
-		echo' deploying'
-		ssh -i /c/Users/ernesto.alvarez/.ssh/id_rsa_jenkins -o StrictHostKeyChecking=no propfile['target_user']@997725-DEV-EPIC-APP-01.signetomni.com "propfile['cli_script'] --connect --controller=997725-DEV-EPIC-APP-01.signetomni.com:propfile['target_port'] --timeout=20000 --file=propfile['war_deploy_dir']/propfile['deployment_cli_file'] --user=propfile['jbosscli_offline_user'] --password='98&OpUw2ZgBTE*R2'"
+	stage("Deploy") {
+		when { expression {env.GIT_BRANCH == 'dev'}}
+		steps {
+			container('gradle') {
+				script {
+					withMaven(maven: 'MAVEN-3.6.3') {
+						if (env.GIT_BRANCH == 'dev' ) {
+							USERNAME=USERNAME_DEPLOY
+							HOSTS=HOSTS_DEPLOY
+						}
+						echo "Pulling artifact from the repository to deploy"
+						sh "mvn org.apache.maven.plugins:maven-dependency-plugin:2.8:get \
+							-DrepoUrl=https://archiva.sgnt.devops.accentureanalytics.com/repository/snapshots \
+							-Dartifact=io.buildpacks.example:sample:${propfile['artifact_name']}:jar -Ddest=$WORKSPACE/artifacts/myfile.jar"
+						sh "ls -la $WORKSPACE/artifacts"
+						HOSTS.tokenize(',').each { HOSTNAME ->
+							sh '''
+								cat << EOF > $deployment_cli_file
+								if (outcome != success) of /deployment=$war_file:read-resource
+								echo ###
+								echo ### Deploy $war_file to somslite-cluster
+								echo ###
+								deploy $war_deploy_dir/$war_file --server-groups=$server_groups
+								else
+								echo ###
+								echo ### Module $war_file already installed, deploying with rolling update
+								echo ###
+								deploy $war_deploy_dir/$war_file --name=$war_file --runtime-name=$war_file --headers={rollout $server_groups(rolling-to-servers=true)} --force
+								end-if
+								echo
+								echo ###
+								echo ### Restarting servers
+								echo ###
+								echo
+								echo ### Restarting somslite-server01
+								if (outcome != success) of /host=node1/server-config=somslite-server01:restart
+								echo ### Server somslite-server01 restart failed
+								echo
+								else
+								echo ### Server somslite-server01 restarted
+								echo
+								end-if
+								EOF
+
+								echo 'coping property file into server'
+								mkdir -p $WORKSPACE/artifacts
+								cp -R /C/windows/system32/config/systemprofile/AppData/Local/Jenkins/.jenkins/workspace/DevOps_SomsLite/DevOps_SomsLite_release-2021_3.2/artifacts/* $WORKSPACE/artifacts/
+								cd $WORKSPACE/artifacts/properties/
+								mv dev_app_1_config-mule.properties config-mule.properties
+								mv dev_app_1_log4j.properties log4j.properties
+								mv dev_app_1_config.properties config.properties
+								scp -i ${token} -o StrictHostKeyChecking=no -rp $WORKSPACE/artifacts/$war_file ${USERNAME}@${HOSTNAME}:$war_deploy_dir
+								scp -i ${token} -rp $WORKSPACE/artifacts/properties/config-mule.properties ${USERNAME}@${HOSTNAME}:$property1_deploy_dir
+								scp -i ${token} -rp $WORKSPACE/artifacts/properties/log4j.properties ${USERNAME}@${HOSTNAME}:$property1_deploy_dir
+								scp -i ${token} -rp $WORKSPACE/artifacts/properties/config.properties ${USERNAME}@${HOSTNAME}:$property2_deploy_dir
+								scp -i ${token} -rp $WORKSPACE/$deployment_cli_file ${USERNAME}@${HOSTNAME}:$war_deploy_dir
+								echo' deploying'
+								ssh -i ${token} ${USERNAME}@${HOSTNAME} "$cli_script --connect --controller=${HOSTNAME}:$target_port --timeout=20000 --file=$war_deploy_dir/$deployment_cli_file --user=$jbosscli_offline_user --password='98&OpUw2ZgBTE*R2'"
+							'''
+						}
+					}
+				}
 			}
 		}
 	}
-   }
- }
-}
 stage('Post Deploy Tests') {
 when { expression {env.GIT_BRANCH == 'dev'}}
 		parallel {
 			stage('Functional Test') {
-				when {expression {propfile['ondemand_functionaltest'] == "true" }}
+				when {expression {ondemand_functionaltest == "true" }}
 				steps {
 				  environment {
                                    worksoftcred= credentials('jenkins-worksoft-creds') 
@@ -186,7 +231,7 @@ when { expression {env.GIT_BRANCH == 'dev'}}
 				exit */
 			}
 			stage('Security Test') {
-			when {expression {propfile['ondemand_securitytest'] == "true" }}
+			when {expression {ondemand_securitytest == "true" }}
 				steps {
 					container('gradle') {
 						script {
@@ -198,7 +243,7 @@ when { expression {env.GIT_BRANCH == 'dev'}}
 				}
 			}
 			stage('Performance Test') {
-			when {expression {propfile['ondemand_perfomancetest'] == "true" }}
+			when {expression {ondemand_perfomancetest == "true" }}
 				steps {
 					container('gradle') {
 						script {
@@ -216,21 +261,12 @@ when { expression {env.GIT_BRANCH == 'dev'}}
 		
 	
   }
-  post {
-		failure {
+	post {
+		always {
 			script {
-				mail to: propfile['mail_to'],
-				cc: propfile['cc_to'],
-				subject: "Failed Pipeline: ${currentBuild.fullDisplayName}",
-				body: "Something is wrong with the ${projectName}-${env.GIT_BRANCH}-Branch-Build-${env.BUILD_NUMBER} Pipeline in the ${FAILED_STAGE} stage.\nBuild URL: ${env.BUILD_URL}"
-			}
-		}
-		success {
-			script {
-				mail to: propfile['mail_to'],
-				cc: propfile['cc_to'],
-				subject: "SuccessfulPipeline: ${currentBuild.fullDisplayName}",
-				body: "${projectName}-${env.GIT_BRANCH}-Branch-Build-${env.BUILD_NUMBER} Pipeline has been completed successfuly.\nBuild URL: ${env.BUILD_URL}"
+				if (javadoc == "true") {
+					javadoc(javadocDir: "/$WORKSPACE/target/site/apidocs", keepAll: true)
+				}
 			}
 		}
 	}
