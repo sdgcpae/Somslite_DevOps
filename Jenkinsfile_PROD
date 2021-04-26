@@ -1,4 +1,5 @@
 def propfile
+def FAILED_STAGE
 def allJob = env.JOB_NAME.tokenize('/') as String[];
 def projectName = allJob[2];
 pipeline {
@@ -21,6 +22,10 @@ pipeline {
 			    tty: true
 			"""
 		}
+	}
+	environment {
+		//SSH TOKENS
+		token = credentials('id_rsa_jenkins')
 	}
 	stages {
 		stage('Build & Unit Test') {
