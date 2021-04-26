@@ -1,1 +1,48 @@
 publish_pkg=false
+auto_deploy=false
+auto_post_deploy_tests=false
+
+//ci specific variables
+javadoc=false
+jacoco=false
+code_quality=false
+
+//post deployment testing specific variables
+ondemand_functionaltest=false
+ondemand_securitytest=false
+ondemand_performancetest=false
+
+//deployment environment specific variables
+////auto_deploy environment details 
+////seperate host ip addresses by comma e.g. 10.1.2.3,10.4.5.6
+target_auto_env=
+HOSTS_AUTO_DEPLOY=
+USERNAME_AUTO_DEPLOY=
+
+////dev environment details 
+////seperate host ip addresses by comma e.g. 10.1.2.3,10.4.5.6
+HOSTS_DEPLOY=997725-DEV-EPIC-APP-01.signetomni.com
+USERNAME_DEPLOY=jobss
+
+//deployment specific variables
+artifact_name=EJB_DevOps-dev-build-6-SNAPSHOT
+cli_script=/opt/jboss/jboss-eap-7.2-domain/bin/jboss-cli.sh
+deployment_cli_file=deployment.cli
+server_groups=somslite-cluster
+target_port=9993
+war_deploy_dir=/opt/jboss/deploy
+war_file=SterlingESB.war
+property1_deploy_dir=/var/properties/ESB01Server01
+property2_deploy_dir=/var/properties/esb
+jbosscli_offline_user=jboss
+jbosscli_offline_password=
+
+////functionaltest (worksoft) specific variables
+uri=http://pwwsftapp01.irving.zalecorp.com/executionmanager/api
+DEV_host1=10.6.71.16
+uname=devopsengineering@signetjewelers.com
+RequestID=
+deployment_user=
+stage_name=
+////security test specific variables
+////performance test specific variables
